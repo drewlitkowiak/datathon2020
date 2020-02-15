@@ -1,0 +1,85 @@
+```{r}
+library(readr)
+library(dplyr)
+library(stringr)
+```
+
+
+```{r}
+part1_fresh = read_csv("box_stuff/Part 1.csv")
+```
+
+```{r}
+part1 = part1_fresh
+
+# Remove descriptive row.
+part1 = part1 %>%
+  slice(-1) %>%
+  select(-YEAR.id)
+
+# Create a descriptive lookup table for the values in the RCPSZFE columns.
+RCPSZFE_lookup_table = part1 %>%
+  select(RCPSZFE.id, `RCPSZFE.display-label`) %>%
+  distinct() %>%
+  arrange(RCPSZFE.id)
+
+# Remove the descriptive column from the model
+part1 = part1 %>%
+  select(-`RCPSZFE.display-label`)
+
+# Determines if GEO.id and GEO.id2 are linearly dependent
+tmp1 = part1 %>%
+  distinct(GEO.id, GEO.id2) %>%
+  group_by(GEO.id2) %>%
+  filter(n() > 1) %>%
+  ungroup(GEO.id2)
+tmp2 = part1 %>%
+  distinct(GEO.id, GEO.id2) %>%
+  group_by(GEO.id) %>%
+  filter(n() > 1) %>%
+  ungroup(GEO.id)
+
+#nrow(tmp1) + nrow(tmp2)
+# Both are 0, therefore they are linearly dependent. So we can remove one.
+
+part1 = part1 %>%
+  select(-GEO.id)
+
+#https://garrettgman.github.io/tidying/
+# Good practice for creating a model matrix to work with these values.
+part1 = part1 %>%
+  spread(RCPSZFE.id, ESTAB)
+
+# Split and clean the GEO display labels into more usable pieces.
+part1 = part1 %>%
+  separate(`GEO.display-label`, c("ZIP", "City_State"), sep = "[(]") %>%
+  mutate(ZIP= str_sub(ZIP, start = 5)) %>%
+  separate(City_State, c("City", "State"), sep = ", ") %>%
+  mutate(State = str_sub(State, end = -2))
+
+#Check whether GEO.id2 and ZIP are dependent
+tmp1 = part1 %>%
+  distinct(GEO.id2, ZIP) %>%
+  group_by(ZIP) %>%
+  filter(n() > 1) %>%
+  ungroup(ZIP)
+tmp2 = part1 %>%
+  distinct(GEO.id2, ZIP) %>%
+  group_by(GEO.id2) %>%
+  filter(n() > 1) %>%
+  ungroup(GEO.id2)
+
+#nrow(tmp1) + nrow(tmp2)
+# Both are 0, therefore they are linearly dependent. So we can remove one.
+
+part1 = part1 %>%
+  select(-GEO.id2)
+
+NAICS_lookup_table = part1 %>%
+  select(NAICS.id, `NAICS.display-label`) %>%
+  distinct()
+
+part1 = part1 %>%
+  select(-`NAICS.display-label`)
+```
+
