@@ -3,6 +3,8 @@
 .RData
 .Ruserdata
 
+*.csv
+
 box_stuff/
 economic_zipcodes/
 VotingRecords/
