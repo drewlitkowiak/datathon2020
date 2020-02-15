@@ -75,10 +75,12 @@ tmp2 = part1 %>%
 part1 = part1 %>%
   select(-GEO.id2)
 
+# Create the lookup table for NAICS
 NAICS_lookup_table = part1 %>%
   select(NAICS.id, `NAICS.display-label`) %>%
   distinct()
 
+# Remove the unnecessary descriptor
 part1 = part1 %>%
   select(-`NAICS.display-label`)
 ```
