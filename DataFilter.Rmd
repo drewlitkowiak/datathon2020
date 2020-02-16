@@ -1,39 +1,37 @@
 ```{r}
-library(readr)
-library(dplyr)
-library(stringr)
+library(tidyverse)
 ```
 
 
-```{r}
-part1_fresh = read_csv("box_stuff/Part 1.csv")
+```{r import_box}
+part1 = read_csv("box_stuff/Part 1.csv") %>% slice(-1)
+part2 = read_csv("box_stuff/Part 2.csv") %>% slice(-1)
+part3 = read_csv("box_stuff/Part 3.csv") %>% slice(-1)
+part4a = read_csv("box_stuff/Part 4a.csv") %>% slice(-1)
+part4b = read_csv("box_stuff/Part 4b.csv") %>% slice(-1)
+part5 = read_csv("box_stuff/Part 5.csv") %>% slice(-1)
+
+total = rbind(part1, part2, part3, part4a, part4b, part5)
+
+#rm(part1, part2, part3, part4a, part4b, part5)
 ```
 
-```{r}
-part1 = part1_fresh
-
+```{r cleanup}
 # Remove descriptive row.
-part1 = part1 %>%
-  slice(-1) %>%
+total = total %>%
   select(-YEAR.id)
 
-# Create a descriptive lookup table for the values in the RCPSZFE columns.
-RCPSZFE_lookup_table = part1 %>%
-  select(RCPSZFE.id, `RCPSZFE.display-label`) %>%
-  distinct() %>%
-  arrange(RCPSZFE.id)
-
 # Remove the descriptive column from the model
-part1 = part1 %>%
-  select(-`RCPSZFE.display-label`)
+total = total %>%
+  select(-RCPSZFE.id)
 
 # Determines if GEO.id and GEO.id2 are linearly dependent
-tmp1 = part1 %>%
+tmp1 = total %>%
   distinct(GEO.id, GEO.id2) %>%
   group_by(GEO.id2) %>%
   filter(n() > 1) %>%
   ungroup(GEO.id2)
-tmp2 = part1 %>%
+tmp2 = total %>%
   distinct(GEO.id, GEO.id2) %>%
   group_by(GEO.id) %>%
   filter(n() > 1) %>%
@@ -42,28 +40,28 @@ tmp2 = part1 %>%
 #nrow(tmp1) + nrow(tmp2)
 # Both are 0, therefore they are linearly dependent. So we can remove one.
 
-part1 = part1 %>%
+total = total %>%
   select(-GEO.id)
 
 #https://garrettgman.github.io/tidying/
 # Good practice for creating a model matrix to work with these values.
-part1 = part1 %>%
-  spread(RCPSZFE.id, ESTAB)
+total = total %>%
+  spread(`RCPSZFE.display-label`, ESTAB)
 
 # Split and clean the GEO display labels into more usable pieces.
-part1 = part1 %>%
+total = total %>%
   separate(`GEO.display-label`, c("ZIP", "City_State"), sep = "[(]") %>%
-  mutate(ZIP= str_sub(ZIP, start = 5)) %>%
+  mutate(ZIP= str_sub(ZIP, start = 5, end = -2)) %>%
   separate(City_State, c("City", "State"), sep = ", ") %>%
   mutate(State = str_sub(State, end = -2))
 
 #Check whether GEO.id2 and ZIP are dependent
-tmp1 = part1 %>%
+tmp1 = total %>%
   distinct(GEO.id2, ZIP) %>%
   group_by(ZIP) %>%
   filter(n() > 1) %>%
   ungroup(ZIP)
-tmp2 = part1 %>%
+tmp2 = total %>%
   distinct(GEO.id2, ZIP) %>%
   group_by(GEO.id2) %>%
   filter(n() > 1) %>%
@@ -72,16 +70,165 @@ tmp2 = part1 %>%
 #nrow(tmp1) + nrow(tmp2)
 # Both are 0, therefore they are linearly dependent. So we can remove one.
 
-part1 = part1 %>%
+total = total %>%
   select(-GEO.id2)
 
 # Create the lookup table for NAICS
-NAICS_lookup_table = part1 %>%
+NAICS_lookup_table = total %>%
   select(NAICS.id, `NAICS.display-label`) %>%
   distinct()
 
 # Remove the unnecessary descriptor
-part1 = part1 %>%
+total = total %>%
   select(-`NAICS.display-label`)
+
+zip_codes_intersect = total %>%
+  select(ZIP) %>%
+  distinct() %>%
+  as.matrix() %>%
+  as.vector()
+```
+
+```{r}
+write_csv(total, "processed_data/cleaned_main.csv")
+write_csv(NAICS_lookup_table, "processed_data/NAICS_lookup_table.csv")
+```
+
+
+```{r}
+total %>%
+  arrange(desc(`All establishments`))
+```
+
+
+```{r}
+total %>%
+  select(State) %>%
+  arrange(State) %>%
+  distinct()
+```
+
+
+```{r}
+total %>%
+  select(State, City) %>%
+  distinct()
+```
+
+```{r}
+total = total %>%
+  mutate(`All establishments` = as.numeric(`All establishments`),
+         `Establishments operated entire year with sales/receipts/revenue of $1,000,000 or more` = as.numeric(`Establishments operated entire year with sales/receipts/revenue of $1,000,000 or more`))
+
+total %>%
+  group_by(ZIP) %>%
+  summarise(`All establishments` = sum(`All establishments`),
+            `Establishments operated entire year with sales/receipts/revenue of $1,000,000 or more` = sum(`Establishments operated entire year with sales/receipts/revenue of $1,000,000 or more`, na.rm = TRUE)) %>%
+  ungroup(ZIP) %>%
+  arrange(desc(`Establishments operated entire year with sales/receipts/revenue of $1,000,000 or more`)) %>%
+  head(20)
+```
+
+```{r}
+st121 %>%
+  select(ZIP, STABR, CITY,  AM:TRALF) %>%
+  filter(ZIP != 20240 & ZIP != 96799 & ZIP != 22203)
+
+state_1 = total %>%
+  select(State, City) %>%
+  distinct()
+
+state_2 = st121 %>%
+  select(CITY, STABR) %>%
+  distinct() %>%
+  rename(State = STABR, City = CITY)
+
+intersect(state_1, state_2)
+```
+
+```{r}
+raceData = read_csv("customData/RaceData/ACS_12_5YR_B02001_with_ann.csv")
+colnames(raceData) = raceData[1,]
+```
+
+```{r}
+raceData = raceData %>%
+  slice(-1)
+
+raceData = raceData %>%
+  select(-Id, -Id2) %>%
+  mutate(Geography = str_sub(Geography, start = 7)) %>%
+  rename(ZIP = Geography)
+raceData
+
+zip_codes_intersect = intersect(zip_codes_intersect, raceData$ZIP)
+
+total %>%
+  select(ZIP) %>%
+  distinct()
+
+raceData %>%
+  select(ZIP) %>%
+  distinct()
+
+# leads to a lot of redundancy. First choose an industry to market in (NAICS.id)
+#inner_join(total, raceData, by = "ZIP")
+
+# removes non-intersecting observations without introducing the redundancy associated
+# with racial factors.
+#total %>%
+  #filter(ZIP %in% zip_codes_intersect)
+```
+```{r}
+write_csv(raceData, "processed_data/raceData.csv")
+```
+
+
+```{r}
+genderData = read_csv("customData/genderData/ACS_12_5YR_B01001_with_ann.csv")
+colnames(genderData) = genderData[1,]
+```
+
+```{r}
+genderData = genderData %>%
+  slice(-1) %>%
+  select(-Id, -Geography) %>%
+  rename(ZIP = Id2) %>%
+  filter(!is.na(ZIP))
+
+zip_codes_intersect = intersect(zip_codes_intersect, genderData$ZIP)
+```
+
+```{r}
+write_csv(genderData, "processed_data/genderData.csv")
+```
+
+
+```{r}
+incomeData = read_csv("customData/IncomeData/ACS_12_5YR_B02001_with_ann.csv")
+colnames(incomeData) = incomeData[1,]
+```
+
+```{r}
+incomeData = incomeData %>%
+  slice(-1)
+
+incomeData = incomeData %>%
+  select(-Id, -Geography) %>%
+  rename(ZIP = Id2)
+```
+
+```{r}
+write_csv(incomeData, path = "processed_data/incomeData.csv")
+```
+
+
+```{r}
+gasData = read_csv("customData/GAS_53/ECN_2012_US_53A2_with_ann.csv")
+colnames(gasData) = gasData[1,]
+```
+
+```{r}
+gasData
 ```
 

@@ -1,0 +1,75 @@
+
+
+```{r}
+library(tidyimpute)
+```
+
+
+```{r}
+cleaned_main = read_csv("processed_data/cleaned_main.csv")
+gender_data = read_csv("processed_data/genderData.csv")
+income_data = read_csv("processed_data/incomeData.csv")
+race_data = read_csv("processed_data/raceData.csv")
+```
+
+```{r}
+cleaned_main = cleaned_main %>%
+  impute_all(0)
+```
+
+```{r}
+zip_intersect = intersect(cleaned_main$ZIP, gender_data$ZIP)
+zip_intersect = intersect(zip_intersect, race_data$ZIP)
+zip_intersect = intersect(zip_intersect, income_data$ZIP)
+```
+
+```{r}
+full = inner_join(cleaned_main, gender_data, by = "ZIP")
+full = inner_join(full, race_data, by = "ZIP")
+full = inner_join(full, income_data, by = "ZIP")
+```
+
+```{r}
+full = full %>%
+  mutate(`All establishments` = as.numeric(`All establishments`),
+         `Establishments not operated for the entire year` = as.numeric(`Establishments not operated for the entire year`),
+         `Establishments operated entire year with sales/receipts/revenue less than $100,000`= as.numeric(`Establishments operated entire year with sales/receipts/revenue less than $100,000`),
+         `Establishments operated entire year with sales/receipts/revenue of $1,000,000 or more` = as.numeric(`Establishments operated entire year with sales/receipts/revenue of $1,000,000 or more`),
+         `Establishments operated entire year with sales/receipts/revenue of $100,000 to $249,999` = as.numeric(`Establishments operated entire year with sales/receipts/revenue of $100,000 to $249,999`),
+         `Establishments operated entire year with sales/receipts/revenue of $250,000 to $499,999` = as.numeric(`Establishments operated entire year with sales/receipts/revenue of $250,000 to $499,999`),
+         `Establishments operated entire year with sales/receipts/revenue of $500,000 to $999,999` = as.numeric(`Establishments operated entire year with sales/receipts/revenue of $500,000 to $999,999`),
+         `Establishments operated for the entire year` = as.numeric(`Establishments operated for the entire year`),
+         `Margin of Error; Male: - Under 5 years` = as.numeric(`Margin of Error; Male: - Under 5 years`),
+         `Margin of Error; Male: - 15 to 17 years` = as.numeric(`Margin of Error; Male: - 15 to 17 years`),
+         `Margin of Error; Male: - 18 and 19 years` = as.numeric(`Margin of Error; Male: - 18 and 19 years`),
+         `Margin of Error; Male: - 25 to 29 years` = as.numeric(`Margin of Error; Male: - 25 to 29 years`),
+         `Margin of Error; Male: - 30 to 34 years` = as.numeric(`Margin of Error; Male: - 30 to 34 years`),
+         `Margin of Error; Male: - 45 to 49 years` = as.numeric(`Margin of Error; Male: - 45 to 49 years`),
+         `Margin of Error; Male: - 50 to 54 years` = as.numeric(`Margin of Error; Male: - 50 to 54 years`),
+         `Margin of Error; Female: - Under 5 years` = as.numeric(`Margin of Error; Female: - Under 5 years`),
+         `Margin of Error; Female: - 15 to 17 years` = as.numeric(`Margin of Error; Female: - 15 to 17 years`),
+         `Margin of Error; Female: - 18 and 19 years` = as.numeric(`Margin of Error; Female: - 18 and 19 years`),
+         `Margin of Error; Female: - 25 to 29 years` = as.numeric(`Margin of Error; Female: - 25 to 29 years`),
+         `Margin of Error; Female: - 30 to 34 years` = as.numeric(`Margin of Error; Female: - 30 to 34 years`),
+         `Margin of Error; Female: - 45 to 49 years` = as.numeric(`Margin of Error; Female: - 45 to 49 years`),
+         `Margin of Error; Female: - 50 to 54 years` = as.numeric(`Margin of Error; Female: - 50 to 54 years`)) %>%
+  select(-`Margin of Error; Total:.x`, -`Estimate; Total:.x`, -`Estimate; Total:`, -`Estimate; Female:`, -`Estimate; Male:`, -`Estimate; Total:.y`, -`Margin of Error; Total:.y`, -`Margin of Error; Male:`, -`Margin of Error; Female:`, -`Margin of Error; Total:`)
+full
+```
+
+```{r}
+write_csv(full, "processed_data/full.csv")
+```
+
+
+
+```{python}
+
+def add(a, b):
+  return a + b
+  
+if __name__ == "__main__":
+  print(add(1, 2))
+
+```
+
